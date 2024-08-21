@@ -3,6 +3,7 @@ import os
 import requests
 import logging
 import time
+from fpdf import FPDF
 from requests_oauthlib import OAuth1
 
 # Load ID and Secret from .env
@@ -74,6 +75,9 @@ def main():
         logger.error(f"Error occurred: {e}")
 
 def stats(auth_header):
+    #create empty lists for genres, artist
+    genres = []
+    artist = []
     #Try/Except statement for logging when running this script.
     try:
         #Get top artists
