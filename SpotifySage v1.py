@@ -118,17 +118,18 @@ def stats(auth_header):
         logger.error(f"Error occured gathering stats_data: {e}")
         return None
 
-def export_to_pdf(data, filename):
-   pdf = FPDF()
-   pdf.add_page()
+def export_to_pdf(user_stats, "D:/Programming Projects/Document Extractions/Spotify_Stats.pdf"):
+    print("Extracting stats to PDF File. Save in root working directory")
+    pdf = FPDF()
+    pdf.add_page()
 
-   pdf.set_font("Arial", size=12)
-   pdf.cell(200, 10, txt="Spotify Listening Stats", ln=True, align='C')
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="Spotify Listening Stats", ln=True, align='C')
 
-   # Example: Add stats to PDF
-   for key, value in data.items():
-       pdf.cell(200, 10, txt=f"{key}: {value}", ln=True, align='L')
+    # Example: Add stats to PDF
+    for key, value in data.items():
+        pdf.cell(200, 10, txt=f"{key}: {value}", ln=True, align='L')
 
-   pdf.output(filename)
+    pdf.output(filename)
 
 
