@@ -69,6 +69,7 @@ def main():
             print(user_stats)
 
             # Export to PDF
+            file_path = "D:/Programming Projects/Document Extractions/Spotify_Stats.pdf"
             export_to_pdf(user_stats, "spotify_stats.pdf")  # Export the stats to a PDF file using export_stats(): function found below
 
     except Exception as e:
@@ -118,7 +119,7 @@ def stats(auth_header):
         logger.error(f"Error occured gathering stats_data: {e}")
         return None
 
-def export_to_pdf(user_stats, "D:/Programming Projects/Document Extractions/Spotify_Stats.pdf"):
+def export_to_pdf(user_stats, file_path):
     print("Extracting stats to PDF File. Save in root working directory")
     pdf = FPDF()
     pdf.add_page()
@@ -127,9 +128,9 @@ def export_to_pdf(user_stats, "D:/Programming Projects/Document Extractions/Spot
     pdf.cell(200, 10, txt="Spotify Listening Stats", ln=True, align='C')
 
     # Example: Add stats to PDF
-    for key, value in data.items():
+    for key, value in user_stats.items():
         pdf.cell(200, 10, txt=f"{key}: {value}", ln=True, align='L')
 
-    pdf.output(filename)
+    pdf.output(file_path)
 
 
