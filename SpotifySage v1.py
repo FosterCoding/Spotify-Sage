@@ -7,6 +7,7 @@ import webbrowser
 import urllib.parse
 from fpdf import FPDF
 from requests_oauthlib import OAuth1
+import subprocess
 
 # Load ID and Secret from .env
 load_dotenv()
@@ -16,6 +17,8 @@ load_dotenv()
 ID = os.getenv('CLIENT_ID')
 SECRET = os.getenv('CLIENT_SECRET')
 AUTHORIZATION = os.getenv('SPOTIFY_AUTHORIZATION')
+REDIRECT_URL = "http://localhost:8888/callback"
+
 
 # Check to make sure all credentials were grabbed
 if not all([ID, SECRET]):
@@ -29,6 +32,60 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger()
+def get_auth_url(): #Uses Spotify's auth code flow which allows for user-specific data
+    auth_url = ( #generate a url for users to authorize program to access spotify data
+        "https://accounts.spotify.com/authorize?"
+        f"client_id={ID}&"
+        "response_type=code&"
+        f"redirect_uri={REDIRECT_URL}&"
+        "scope=user-top-read"
+    )
+    return auth_url
+
+def get_token_from_redirect(code): #get url from flask and create the token
+    url = "https://accounts.spotify.com/api/token"
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+    data = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URL,
+        "client_id": ID,
+        "client_secret": SECRET
+    }
+    print(f"Request Data: {data}")
+    response = requests.post(url, headers=headers, data=data)
+    print(f"Response Status Code: {response.status_code}")
+    print(f"Response Text: {response.text}")
+
+    if response.status_code == 200:
+        token_info = response.json()
+        return token_info['access_token']
+    else:
+        raise Exception(f'Failed to get token: {response.status_code} {response.text}')
+def main():# Run the Flask app separately to handle the authorization and get the token
+            # The Flask app should save the token in 'access_token.txt'
+            # Read the access token obtained by the Flask app and strip it, assign it to the token vairable
+            #Run the get_auth_header function and pass the token to it.
+    try:
+        with open('access_token.txt', 'r') as f: #access_token.txt is created in the Redirect (Flask) file.
+            token=f.read().strip()
+
+        auth_header = get_auth_header(token)  # Create the auth header with the token from previous line
+
+        # Fetch the stats
+        user_stats = stats(auth_header)  #Assign the user_stats variable the results from the stats(auth_header): function below
+        if user_stats:
+            logger.info("Successfully fetched user stats")
+            print(user_stats)
+
+            # Export to PDF
+            file_path = "D:/Programming Projects/Document Extractions/Spotify_Stats.pdf"
+            export_to_pdf(user_stats, file_path)
+
+    except Exception as e:
+        logger.error(f"Error occurred: {e}")
 
 def create_oauth(): # oauth session for authentication
     return OAuth1(
@@ -58,25 +115,6 @@ def get_auth_header(token):
     return {
         "Authorization": f"Bearer {token}"
     }
-
-def main():
-    try:
-        token = get_token()  # Obtain the token
-        logger.info("Successfully obtained token")
-
-        auth_header = get_auth_header(token)  # Create the auth header with the token from previous line
-
-        # Fetch the stats
-        user_stats = stats(auth_header)  #Assign the user_stats variable the results from the stats(auth_header): function below
-        if user_stats:
-            logger.info("Successfully fetched user stats")
-            print(user_stats)
-
-            # Export to PDF
-            file_path = "D:/Programming Projects/Document Extractions/Spotify_Stats.pdf"
-            export_to_pdf(user_stats, file_path)
-    except Exception as e:
-        logger.error(f"Error occurred: {e}")
 
 
 def stats(auth_header):
@@ -139,21 +177,25 @@ def stats(auth_header):
         logger.error(f"Error occurred gathering stats_data: {e}")
         return None
 
+from fpdf import FPDF
+
 def export_to_pdf(user_stats, file_path):
-    print("Extracting stats to PDF File. Save in root working directory")
     pdf = FPDF()
-    pdf.add_page()
+    pdf.set_font("Times", size=12)
 
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="Spotify Listening Stats", ln=True, align='C')
+    for key, value in user_stats.items(): #Loops to grab a new page for every section (Artist, Tracks, Genres, Recommend)
+        pdf.add_page()
+        pdf.set_font("Times", "BIU", 16) #Font and size for titles
+        pdf.cell(200,10,txt=key, ln=True, align='C') #Alignment
 
-    # Add stats to PDF
-    for key, value in user_stats.items():
-        value_str = ", ".join(value) if isinstance(value, list) else str(value)
-        pdf.cell(200, 10, txt=f"{key}: {value_str}", ln=True, align='L')
+        pdf.set_font("Times", size=12)
+        for i, item in enumerate(value, 1): #generates a number list starting with number 1
+            pdf.cell(200, 10, txt=f"{i}.{item}", ln=True, align= "C")
+            #txt=f"{i}.{item} insert number of item and then the name from the item list
 
+    file_path = "./Spotify_Stats.pdf"
     pdf.output(file_path)
-    print(f"PDF saved as {file_path}")
+    print(f"PDF saved to {file_path}")
 
 if __name__ == "__main__":
     main()
