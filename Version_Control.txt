@@ -1,2 +1,5 @@
 Current Version:
  1.0 - Base working bot. Basic PDF extraction. DOes not work without ENV files containing Client Id and secret just yet.
+ Updated main function to grab auth code form access_token.txt instead of trying to enter it manually.
+ Updated callback under Redirect to save code to access_token.txt.
+ Changed PDF Extraction to be a numbered list.
