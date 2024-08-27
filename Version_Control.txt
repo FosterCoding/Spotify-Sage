@@ -1,2 +1,2 @@
 Current Version:
- 1.0 - Base working bot. Basic PDF extraction.
+ 1.0 - Base working bot. Basic PDF extraction. DOes not work without ENV files containing Client Id and secret just yet.
