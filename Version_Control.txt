@@ -1,0 +1,2 @@
+Current Version:
+ 1.0 - Base working bot. Basic PDF extraction.
