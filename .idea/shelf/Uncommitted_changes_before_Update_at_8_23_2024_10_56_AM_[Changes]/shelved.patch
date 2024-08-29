@@ -1,0 +1,279 @@
+Index: SpotifySage v1.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from dotenv import load_dotenv\r\nimport os\r\nimport requests\r\nimport logging\r\nimport time\r\nfrom fpdf import FPDF\r\nfrom requests_oauthlib import OAuth1\r\n\r\n# Load ID and Secret from .env\r\nload_dotenv()\r\n\r\n# Grab credentials from .env file\r\nID = os.getenv('CLIENT_ID')\r\nSECRET = os.getenv('CLIENT_SECRET')\r\n\r\n# Check to make sure all credentials were grabbed\r\nif not all([ID, SECRET]):\r\n    raise ValueError(\"One or more API credentials are missing. Check env and proceed.\")\r\n\r\n# Setup logging to track errors and debugging\r\nlogging.basicConfig(\r\n    level = logging.INFO,\r\n    format = '%(asctime)s - %(levelname)s - %(message)s',\r\n    datefmt = '%Y-%m-%d %H:%M:%S'\r\n)\r\n\r\nlogger = logging.getLogger()\r\n\r\ndef create_oauth(): # oauth session for authentication\r\n    return OAuth1(\r\n        client_key = ID,\r\n        client_secret = SECRET\r\n    )\r\n\r\ndef get_token():\r\n    # Grab the Spotify OAuth2 token\r\n    url = \"https://accounts.spotify.com/api/token\"\r\n    headers = {\r\n        \"Authorization\": f\"Basic {os.environ['SPOTIFY_AUTHORIZATION']}\",\r\n        \"Content-Type\": \"application/x-www-form-urlencoded\"\r\n    }\r\n    data = {\r\n        \"grant_type\": \"client_credentials\"\r\n    }\r\n\r\n    response = requests.post(url, headers=headers, data=data)\r\n    if response.status_code == 200:\r\n        token_info = response.json()\r\n        return token_info['access_token']\r\n    else:\r\n        raise Exception(f'Failed to get token: {response.status_code} {response.text}')\r\n\r\ndef get_auth_header(token):\r\n    return {\r\n        \"Authorization\": f\"Bearer {token}\"\r\n    }\r\n\r\ndef main():\r\n    try:\r\n        token = get_token()  # Obtain the token\r\n        logger.info(\"Successfully obtained token\")\r\n\r\n        auth_header = get_auth_header(token)  # Create the auth header with the token from previous line\r\n\r\n        # Fetch the stats\r\n        user_stats = stats(auth_header)  #Assign the user_stats variable the results from the stats(auth_header): function below\r\n        if user_stats:\r\n            logger.info(\"Successfully fetched user stats\")\r\n            print(user_stats)\r\n\r\n            # Export to PDF\r\n            file_path = \"D:/Programming Projects/Document Extractions/Spotify_Stats.pdf\"\r\n            export_to_pdf(user_stats, \"spotify_stats.pdf\")  # Export the stats to a PDF file using export_stats(): function found below\r\n\r\n    except Exception as e:\r\n        logger.error(f\"Error occurred: {e}\")\r\n\r\ndef stats(auth_header):\r\n    #create empty lists for genres, artist\r\n    genres = []\r\n    artist = []\r\n    #Try/Except statement for logging when running this script.\r\n    try:\r\n        #Get top artists\r\n        top_artists = requests.get(\r\n             \"https://api.spotify.com/v1/me/top/artists?limit=10\",\r\n            headers=auth_header\r\n        )\r\n        top_artists = top_artists.json()\r\n\r\n        #Get top tracks\r\n        top_tracks=requests.get(\r\n            \"https://api.spotify.com/v1/me/top/tracks?limit=10\",\r\n        )\r\n        top_tracks = top_tracks.json()\r\n\r\n        #Grab the genres from each of the top artist\r\n        for artists in top_artists['items']:\r\n            genres.extend(artist['genres'])\r\n\r\n        #Get song recommendations based on the songs in top tracks and top artists\r\n        seed_artists = \",\".join([artist['id'] for artist in top_artists['items'][:2]])\r\n        seed_tracks = \",\".join([track['id'] for track in top_tracks['items'][:2]])\r\n        recommendations_response = requests.get(\r\n        f\"https://api.spotify.com/v1/recommendations?seed_artists={seed_artists}&seed_tracks={seed_tracks}&limit=10\",\r\n            headers=auth_header\r\n        )\r\n        recommendations = recommendations_response.json()\r\n\r\n        #Gather and organize the stats\r\n        stats_data = {\r\n            \"Top Artists\": [artist['name'] for artist in top_artists['items']],\r\n            \"Top Tracks\": [track['name'] for track in top_tracks['items']],\r\n            \"Top Genres\": list(set(genres)),  # Remove duplicates by converting to set\r\n            \"Song Recommendations\": [rec['name'] for rec in recommendations['tracks']]\r\n        }\r\n        return stats_data\r\n    except Exception as e:\r\n        logger.error(f\"Error occured gathering stats_data: {e}\")\r\n        return None\r\n\r\ndef export_to_pdf(user_stats, file_path):\r\n    print(\"Extracting stats to PDF File. Save in root working directory\")\r\n    pdf = FPDF()\r\n    pdf.add_page()\r\n\r\n    pdf.set_font(\"Arial\", size=12)\r\n    pdf.cell(200, 10, txt=\"Spotify Listening Stats\", ln=True, align='C')\r\n\r\n    # Example: Add stats to PDF\r\n    for key, value in user_stats.items():\r\n        pdf.cell(200, 10, txt=f\"{key}: {value}\", ln=True, align='L')\r\n\r\n    pdf.output(file_path)\r\n\r\n\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/SpotifySage v1.py b/SpotifySage v1.py
+--- a/SpotifySage v1.py	(revision 380a6858c1fa3955cad626f8520242ca94184672)
++++ b/SpotifySage v1.py	(date 1724424824000)
+@@ -3,15 +3,19 @@
+ import requests
+ import logging
+ import time
++import webbrowser
++import urllib.parse
+ from fpdf import FPDF
+ from requests_oauthlib import OAuth1
+ 
+ # Load ID and Secret from .env
+ load_dotenv()
+ 
++
+ # Grab credentials from .env file
+ ID = os.getenv('CLIENT_ID')
+ SECRET = os.getenv('CLIENT_SECRET')
++AUTHORIZATION = os.getenv('SPOTIFY_AUTHORIZATION')
+ 
+ # Check to make sure all credentials were grabbed
+ if not all([ID, SECRET]):
+@@ -36,7 +40,7 @@
+     # Grab the Spotify OAuth2 token
+     url = "https://accounts.spotify.com/api/token"
+     headers = {
+-        "Authorization": f"Basic {os.environ['SPOTIFY_AUTHORIZATION']}",
++        "Authorization": f"Basic {os.getenv('SPOTIFY_AUTHORIZATION')}",
+         "Content-Type": "application/x-www-form-urlencoded"
+     }
+     data = {
+@@ -70,53 +74,69 @@
+ 
+             # Export to PDF
+             file_path = "D:/Programming Projects/Document Extractions/Spotify_Stats.pdf"
+-            export_to_pdf(user_stats, "spotify_stats.pdf")  # Export the stats to a PDF file using export_stats(): function found below
+-
++            export_to_pdf(user_stats, file_path)
+     except Exception as e:
+         logger.error(f"Error occurred: {e}")
+ 
++
+ def stats(auth_header):
+-    #create empty lists for genres, artist
++    # Create empty lists for genres and artists
+     genres = []
+     artist = []
+-    #Try/Except statement for logging when running this script.
++    top_tracks_data = []
++    top_artists_data = []
++
+     try:
+-        #Get top artists
++        # Get top artists
+         top_artists = requests.get(
+-             "https://api.spotify.com/v1/me/top/artists?limit=10",
++            "https://api.spotify.com/v1/me/top/artists?limit=10",
+             headers=auth_header
+         )
+         top_artists = top_artists.json()
++        print("Top Artists Response:", top_artists)  # Debug output
++
++        # Check for 'items' in top_artists response
++        if 'items' in top_artists:
++            for artist in top_artists['items']:
++                genres.extend(artist.get('genres', []))
++        else:
++            logger.error("Top Artists response does not contain 'items'")
+ 
+-        #Get top tracks
+-        top_tracks=requests.get(
++        # Get top tracks
++        top_tracks = requests.get(
+             "https://api.spotify.com/v1/me/top/tracks?limit=10",
++            headers=auth_header
+         )
+         top_tracks = top_tracks.json()
++        print("Top Tracks Response:", top_tracks)  # Debug output
+ 
+-        #Grab the genres from each of the top artist
+-        for artists in top_artists['items']:
+-            genres.extend(artist['genres'])
++        # Check for 'items' in top_tracks response
++        if 'items' in top_tracks:
++            # Process tracks if needed
++            pass
++        else:
++            logger.error("Top Tracks response does not contain 'items'")
+ 
+-        #Get song recommendations based on the songs in top tracks and top artists
+-        seed_artists = ",".join([artist['id'] for artist in top_artists['items'][:2]])
+-        seed_tracks = ",".join([track['id'] for track in top_tracks['items'][:2]])
++        # Get song recommendations based on the songs in top tracks and top artists
++        seed_artists = ",".join([artist['id'] for artist in top_artists.get('items', [])[:2]])
++        seed_tracks = ",".join([track['id'] for track in top_tracks.get('items', [])[:2]])
+         recommendations_response = requests.get(
+-        f"https://api.spotify.com/v1/recommendations?seed_artists={seed_artists}&seed_tracks={seed_tracks}&limit=10",
++            f"https://api.spotify.com/v1/recommendations?seed_artists={seed_artists}&seed_tracks={seed_tracks}&limit=10",
+             headers=auth_header
+         )
+         recommendations = recommendations_response.json()
++        print("Recommendations Response:", recommendations)
+ 
+-        #Gather and organize the stats
++        # Gather and organize the stats
+         stats_data = {
+-            "Top Artists": [artist['name'] for artist in top_artists['items']],
+-            "Top Tracks": [track['name'] for track in top_tracks['items']],
++            "Top Artists": [artist['name'] for artist in top_artists.get('items', [])],
++            "Top Tracks": [track['name'] for track in top_tracks.get('items', [])],
+             "Top Genres": list(set(genres)),  # Remove duplicates by converting to set
+-            "Song Recommendations": [rec['name'] for rec in recommendations['tracks']]
++            "Song Recommendations": [rec['name'] for rec in recommendations.get('tracks', [])]
+         }
+         return stats_data
+     except Exception as e:
+-        logger.error(f"Error occured gathering stats_data: {e}")
++        logger.error(f"Error occurred gathering stats_data: {e}")
+         return None
+ 
+ def export_to_pdf(user_stats, file_path):
+@@ -127,10 +147,13 @@
+     pdf.set_font("Arial", size=12)
+     pdf.cell(200, 10, txt="Spotify Listening Stats", ln=True, align='C')
+ 
+-    # Example: Add stats to PDF
++    # Add stats to PDF
+     for key, value in user_stats.items():
+-        pdf.cell(200, 10, txt=f"{key}: {value}", ln=True, align='L')
++        value_str = ", ".join(value) if isinstance(value, list) else str(value)
++        pdf.cell(200, 10, txt=f"{key}: {value_str}", ln=True, align='L')
+ 
+     pdf.output(file_path)
++    print(f"PDF saved as {file_path}")
+ 
+-
++if __name__ == "__main__":
++    main()
+Index: .idea/workspace.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<project version=\"4\">\r\n  <component name=\"AutoImportSettings\">\r\n    <option name=\"autoReloadType\" value=\"SELECTIVE\" />\r\n  </component>\r\n  <component name=\"ChangeListManager\">\r\n    <list default=\"true\" id=\"c2f791b8-0452-478d-9ba8-cf4c6f3e0984\" name=\"Changes\" comment=\"V1.0 (Basic stats and recommendations)\">\r\n      <change beforePath=\"$PROJECT_DIR$/.idea/workspace.xml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.idea/workspace.xml\" afterDir=\"false\" />\r\n    </list>\r\n    <option name=\"SHOW_DIALOG\" value=\"false\" />\r\n    <option name=\"HIGHLIGHT_CONFLICTS\" value=\"true\" />\r\n    <option name=\"HIGHLIGHT_NON_ACTIVE_CHANGELIST\" value=\"false\" />\r\n    <option name=\"LAST_RESOLUTION\" value=\"IGNORE\" />\r\n  </component>\r\n  <component name=\"FileTemplateManagerImpl\">\r\n    <option name=\"RECENT_TEMPLATES\">\r\n      <list>\r\n        <option value=\"Python Script\" />\r\n      </list>\r\n    </option>\r\n  </component>\r\n  <component name=\"Git.Settings\">\r\n    <option name=\"PREVIOUS_COMMIT_AUTHORS\">\r\n      <list>\r\n        <option value=\"Raymond Foster\" />\r\n      </list>\r\n    </option>\r\n    <option name=\"RECENT_GIT_ROOT_PATH\" value=\"$PROJECT_DIR$\" />\r\n  </component>\r\n  <component name=\"ProjectColorInfo\">{\r\n  &quot;associatedIndex&quot;: 2\r\n}</component>\r\n  <component name=\"ProjectId\" id=\"2j43JI2r9fkCLfcbfJLRdtcEYS3\" />\r\n  <component name=\"ProjectLevelVcsManager\" settingsEditedManually=\"true\" />\r\n  <component name=\"ProjectViewState\">\r\n    <option name=\"hideEmptyMiddlePackages\" value=\"true\" />\r\n    <option name=\"showLibraryContents\" value=\"true\" />\r\n  </component>\r\n  <component name=\"PropertiesComponent\">{\r\n  &quot;keyToString&quot;: {\r\n    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,\r\n    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,\r\n    &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,\r\n    &quot;git-widget-placeholder&quot;: &quot;master&quot;,\r\n    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,\r\n    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,\r\n    &quot;last_opened_file_path&quot;: &quot;D:/Programming Projects/Python/TweetDelete/TweetDelete_Single.py&quot;,\r\n    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,\r\n    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,\r\n    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,\r\n    &quot;show.migrate.to.gradle.popup&quot;: &quot;false&quot;\r\n  }\r\n}</component>\r\n  <component name=\"SharedIndexes\">\r\n    <attachedChunks>\r\n      <set>\r\n        <option value=\"bundled-python-sdk-d68999036c7f-d3b881c8e49f-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-233.14475.56\" />\r\n      </set>\r\n    </attachedChunks>\r\n  </component>\r\n  <component name=\"SpellCheckerSettings\" RuntimeDictionaries=\"0\" Folders=\"0\" CustomDictionaries=\"0\" DefaultDictionary=\"application-level\" UseSingleDictionary=\"true\" transferred=\"true\" />\r\n  <component name=\"TaskManager\">\r\n    <task active=\"true\" id=\"Default\" summary=\"Default task\">\r\n      <changelist id=\"c2f791b8-0452-478d-9ba8-cf4c6f3e0984\" name=\"Changes\" comment=\"\" />\r\n      <created>1720632448739</created>\r\n      <option name=\"number\" value=\"Default\" />\r\n      <option name=\"presentableId\" value=\"Default\" />\r\n      <updated>1720632448739</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00001\" summary=\"V1.0 (Basic stats and recommendations)\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1724269880043</created>\r\n      <option name=\"number\" value=\"00001\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00001\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1724269880043</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00002\" summary=\"V1.0 (Basic stats and recommendations)\">\r\n      <option name=\"closed\" value=\"true\" />\r\n      <created>1724269971764</created>\r\n      <option name=\"number\" value=\"00002\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00002\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1724269971764</updated>\r\n    </task>\r\n    <option name=\"localTasksCounter\" value=\"3\" />\r\n    <servers />\r\n  </component>\r\n  <component name=\"VcsManagerConfiguration\">\r\n    <MESSAGE value=\"V1.0 (Basic stats and recommendations)\" />\r\n    <option name=\"LAST_COMMIT_MESSAGE\" value=\"V1.0 (Basic stats and recommendations)\" />\r\n  </component>\r\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/workspace.xml b/.idea/workspace.xml
+--- a/.idea/workspace.xml	(revision 380a6858c1fa3955cad626f8520242ca94184672)
++++ b/.idea/workspace.xml	(date 1724424272000)
+@@ -4,8 +4,10 @@
+     <option name="autoReloadType" value="SELECTIVE" />
+   </component>
+   <component name="ChangeListManager">
+-    <list default="true" id="c2f791b8-0452-478d-9ba8-cf4c6f3e0984" name="Changes" comment="V1.0 (Basic stats and recommendations)">
++    <list default="true" id="c2f791b8-0452-478d-9ba8-cf4c6f3e0984" name="Changes" comment="Merge remote-tracking branch 'origin/master'">
++      <change afterPath="$PROJECT_DIR$/.env" afterDir="false" />
+       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/SpotifySage v1.py" beforeDir="false" afterPath="$PROJECT_DIR$/SpotifySage v1.py" afterDir="false" />
+     </list>
+     <option name="SHOW_DIALOG" value="false" />
+     <option name="HIGHLIGHT_CONFLICTS" value="true" />
+@@ -26,6 +28,7 @@
+       </list>
+     </option>
+     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
++    <option name="UPDATE_TYPE" value="REBASE" />
+   </component>
+   <component name="ProjectColorInfo">{
+   &quot;associatedIndex&quot;: 2
+@@ -36,21 +39,24 @@
+     <option name="hideEmptyMiddlePackages" value="true" />
+     <option name="showLibraryContents" value="true" />
+   </component>
+-  <component name="PropertiesComponent">{
+-  &quot;keyToString&quot;: {
+-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+-    &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
+-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+-    &quot;last_opened_file_path&quot;: &quot;D:/Programming Projects/Python/TweetDelete/TweetDelete_Single.py&quot;,
+-    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
+-    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+-    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+-    &quot;show.migrate.to.gradle.popup&quot;: &quot;false&quot;
++  <component name="PropertiesComponent"><![CDATA[{
++  "keyToString": {
++    "Python.SpotifySage v1.executor": "Run",
++    "Python.base.executor": "Run",
++    "RunOnceActivity.OpenProjectViewOnStart": "true",
++    "RunOnceActivity.ShowReadmeOnStart": "true",
++    "dart.analysis.tool.window.visible": "false",
++    "git-widget-placeholder": "master",
++    "ignore.virus.scanning.warn.message": "true",
++    "kotlin-language-version-configured": "true",
++    "last_opened_file_path": "C:/Users/rayfo/Downloads/idea-php-dotenv-plugin-2024.2.1.zip",
++    "project.structure.last.edited": "Project",
++    "project.structure.proportion": "0.0",
++    "project.structure.side.proportion": "0.0",
++    "settings.editor.selected.configurable": "preferences.pluginManager",
++    "show.migrate.to.gradle.popup": "false"
+   }
+-}</component>
++}]]></component>
+   <component name="SharedIndexes">
+     <attachedChunks>
+       <set>
+@@ -83,11 +89,47 @@
+       <option name="project" value="LOCAL" />
+       <updated>1724269971764</updated>
+     </task>
+-    <option name="localTasksCounter" value="3" />
++    <task id="LOCAL-00003" summary="V1.0 (Basic stats and recommendations)">
++      <option name="closed" value="true" />
++      <created>1724270465390</created>
++      <option name="number" value="00003" />
++      <option name="presentableId" value="LOCAL-00003" />
++      <option name="project" value="LOCAL" />
++      <updated>1724270465390</updated>
++    </task>
++    <task id="LOCAL-00004" summary="Merge remote-tracking branch 'origin/master'">
++      <option name="closed" value="true" />
++      <created>1724271174257</created>
++      <option name="number" value="00004" />
++      <option name="presentableId" value="LOCAL-00004" />
++      <option name="project" value="LOCAL" />
++      <updated>1724271174257</updated>
++    </task>
++    <task id="LOCAL-00005" summary="Merge remote-tracking branch 'origin/master'">
++      <option name="closed" value="true" />
++      <created>1724271432754</created>
++      <option name="number" value="00005" />
++      <option name="presentableId" value="LOCAL-00005" />
++      <option name="project" value="LOCAL" />
++      <updated>1724271432754</updated>
++    </task>
++    <option name="localTasksCounter" value="6" />
+     <servers />
+   </component>
++  <component name="Vcs.Log.Tabs.Properties">
++    <option name="TAB_STATES">
++      <map>
++        <entry key="MAIN">
++          <value>
++            <State />
++          </value>
++        </entry>
++      </map>
++    </option>
++  </component>
+   <component name="VcsManagerConfiguration">
+     <MESSAGE value="V1.0 (Basic stats and recommendations)" />
+-    <option name="LAST_COMMIT_MESSAGE" value="V1.0 (Basic stats and recommendations)" />
++    <MESSAGE value="Merge remote-tracking branch 'origin/master'" />
++    <option name="LAST_COMMIT_MESSAGE" value="Merge remote-tracking branch 'origin/master'" />
+   </component>
+ </project>
+\ No newline at end of file
+Index: .env
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.env b/.env
+new file mode 100644
+--- /dev/null	(date 1724424162000)
++++ b/.env	(date 1724424162000)
+@@ -0,0 +1,3 @@
++CLIENT_ID=f0fc613c9f7c40109efa1193a0229f8b
++CLIENT_SECRET=47e2971648a14694a8fb1e9358e2f2a7
++SPOTIFY_AUTHORIZATION=ZjBmYzYxM2M5ZjdjNDAxMDllZmExMTkzYTAyMjlmOGI6NDdlMjk3MTY0OGExNDY5NGE4ZmIxZTkzNThlMmYyYTc=
