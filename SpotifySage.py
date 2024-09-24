@@ -2,12 +2,11 @@ from dotenv import load_dotenv
 import os
 import requests
 import logging
-import time
 import webbrowser
 import urllib.parse
 from fpdf import FPDF
 from requests_oauthlib import OAuth1
-import subprocess
+
 
 # Load ID and Secret from .env
 load_dotenv()
@@ -16,8 +15,13 @@ load_dotenv()
 # Grab credentials from .env file
 ID = os.getenv('CLIENT_ID')
 SECRET = os.getenv('CLIENT_SECRET')
-AUTHORIZATION = os.getenv('SPOTIFY_AUTHORIZATION')
+#Redirect Url for the Flask Redirect.py
 REDIRECT_URL = "http://localhost:8888/callback"
+#Constants
+AUTH_URL = 'https://accounts.spotify.com/authorize'
+TOKEN_URL = 'https://accounts.spotify.com/api/token'
+SCOPE = 'user-top-read user-read-playback-state playlist-modify-public'
+
 
 
 # Check to make sure all credentials were grabbed
@@ -33,14 +37,20 @@ logging.basicConfig(
 
 logger = logging.getLogger()
 def get_auth_url(): #Uses Spotify's auth code flow which allows for user-specific data
-    auth_url = ( #generate a url for users to authorize program to access spotify data
-        "https://accounts.spotify.com/authorize?"
-        f"client_id={ID}&"
-        "response_type=code&"
-        f"redirect_uri={REDIRECT_URL}&"
-        "scope=user-top-read"
-    )
-    return auth_url
+    params = {
+        'client_id': ID,
+        'response_type': 'code',
+        'redirect_uri': REDIRECT_URL,
+        'scope': SCOPE
+        #Adds the parameters that spotify needs to authenticate and details the permissions in SCOPE
+    }
+    url = f"{AUTH_URL}?{urllib.parse.urlencode(params)}"
+    return url
+
+def spotify_login():
+    auth_url = get_auth_url() #Run the get_auth_url function and assign the output to auth_url variable
+    webbrowser.open(auth_url)#Open the auth_url variable in a web browser
+spotify_login()
 
 def get_token_from_redirect(code): #get url from flask and create the token
     url = "https://accounts.spotify.com/api/token"
@@ -54,25 +64,36 @@ def get_token_from_redirect(code): #get url from flask and create the token
         "client_id": ID,
         "client_secret": SECRET
     }
-    print(f"Request Data: {data}")
     response = requests.post(url, headers=headers, data=data)
+
+    print(f"Request Data: {data}")
     print(f"Response Status Code: {response.status_code}")
     print(f"Response Text: {response.text}")
 
     if response.status_code == 200:
         token_info = response.json()
-        return token_info['access_token']
+        # Extract the access token
+        access_token = token_info['access_token']
+        # Save only the access token to the file
+        with open('access_token.txt', 'w') as f:
+            f.write(access_token)
+        return access_token
     else:
         raise Exception(f'Failed to get token: {response.status_code} {response.text}')
+def get_auth_header(token):
+    return {
+        "Authorization": f"Bearer {token}"
+    }
 def main():# Run the Flask app separately to handle the authorization and get the token
             # The Flask app should save the token in 'access_token.txt'
             # Read the access token obtained by the Flask app and strip it, assign it to the token vairable
             #Run the get_auth_header function and pass the token to it.
     try:
-        with open('access_token.txt', 'r') as f: #access_token.txt is created in the Redirect (Flask) file.
-            token=f.read().strip()
+        # Read the access token obtained by the Flask app
+        with open('access_token.txt', 'r') as f:
+            token = f.read().strip()
 
-        auth_header = get_auth_header(token)  # Create the auth header with the token from previous line
+        auth_header = get_auth_header(token)  # Create the auth header with the token
 
         # Fetch the stats
         user_stats = stats(auth_header)  #Assign the user_stats variable the results from the stats(auth_header): function below
@@ -86,36 +107,6 @@ def main():# Run the Flask app separately to handle the authorization and get th
 
     except Exception as e:
         logger.error(f"Error occurred: {e}")
-
-def create_oauth(): # oauth session for authentication
-    return OAuth1(
-        client_key = ID,
-        client_secret = SECRET
-    )
-
-def get_token():
-    # Grab the Spotify OAuth2 token
-    url = "https://accounts.spotify.com/api/token"
-    headers = {
-        "Authorization": f"Basic {os.getenv('SPOTIFY_AUTHORIZATION')}",
-        "Content-Type": "application/x-www-form-urlencoded"
-    }
-    data = {
-        "grant_type": "client_credentials"
-    }
-
-    response = requests.post(url, headers=headers, data=data)
-    if response.status_code == 200:
-        token_info = response.json()
-        return token_info['access_token']
-    else:
-        raise Exception(f'Failed to get token: {response.status_code} {response.text}')
-
-def get_auth_header(token):
-    return {
-        "Authorization": f"Bearer {token}"
-    }
-
 
 def stats(auth_header):
     # Create empty lists for genres and artists
@@ -176,8 +167,6 @@ def stats(auth_header):
     except Exception as e:
         logger.error(f"Error occurred gathering stats_data: {e}")
         return None
-
-from fpdf import FPDF
 
 def export_to_pdf(user_stats, file_path):
     pdf = FPDF()

@@ -1,0 +1,14 @@
+Current Version:
+2.0 - Changes the login process to work without SECRET in the ENV file.
+Uses the client ID and then opens a web browser for user to login
+to spotify.
+    - Tokens are saved locally on device so user only has to log in once
+
+
+
+1.0 - Base working bot. Basic PDF extraction. Does not work without ENV files containing Client ID and Secret just yet.
+ Updated main function to grab auth code form access_token.txt instead of trying to enter it manually.
+ Updated callback under Redirect to save code to access_token.txt.
+ Changed PDF Extraction to be a numbered list.
+ Will create Spotify_Stats.pdf under the root directory of Spotify Sage
+
